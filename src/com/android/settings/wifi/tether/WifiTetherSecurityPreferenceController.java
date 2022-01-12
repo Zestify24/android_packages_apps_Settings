@@ -20,11 +20,8 @@ import static com.android.settings.AllInOneTetherSettings.DEDUP_POSTFIX;
 
 import android.annotation.NonNull;
 import android.content.Context;
-import android.net.wifi.SoftApCapability;
 import android.net.wifi.SoftApConfiguration;
-import android.net.wifi.WifiManager;
 import android.util.FeatureFlagUtils;
-import android.util.Log;
 
 import androidx.annotation.VisibleForTesting;
 import androidx.preference.ListPreference;
@@ -44,27 +41,13 @@ public class WifiTetherSecurityPreferenceController extends WifiTetherBasePrefer
 
     private static final String PREF_KEY = "wifi_tether_security";
 
-    private Map<Integer, String> mSecurityMap = new LinkedHashMap<Integer, String>();
+    private final String[] mSecurityEntries;
     private int mSecurityValue;
-    @VisibleForTesting
-    boolean mIsWpa3Supported = true;
-    boolean mIsOweSapSupported = true;
-    boolean mIsDualSapSupported = false;
-    private String[] securityNames;
-    private String[] securityValues;
 
     public WifiTetherSecurityPreferenceController(Context context,
             OnTetherConfigUpdateListener listener) {
         super(context, listener);
-        securityNames = mContext.getResources().getStringArray(
-                R.array.wifi_tether_security);
-        securityValues = mContext.getResources().getStringArray(
-                R.array.wifi_tether_security_values);
-        for (int i = 0; i < securityNames.length; i++) {
-            mSecurityMap.put(Integer.parseInt(securityValues[i]), securityNames[i]);
-        }
-        mWifiManager.registerSoftApCallback(context.getMainExecutor(), this);
-        mIsDualSapSupported = mWifiManager.isBridgedApConcurrencySupported();
+        mSecurityEntries = mContext.getResources().getStringArray(R.array.wifi_tether_security);
     }
 
     @Override
@@ -75,51 +58,15 @@ public class WifiTetherSecurityPreferenceController extends WifiTetherBasePrefer
 
     @Override
     public void updateDisplay() {
-        // The mPreference will be ready when the fragment calls displayPreference(). Since the
-        // capability of WPA3 hotspot callback will update the preference list here, add null point
-        // checking to avoid the mPreference is not ready when the fragment is loading for settings
-        // keyword searching only.
-        if (mPreference == null) {
-            return;
+        final SoftApConfiguration config = mWifiManager.getSoftApConfiguration(); 
+        if (config != null && config.getSecurityType() == SoftApConfiguration.SECURITY_TYPE_OPEN) {
+            mSecurityValue = SoftApConfiguration.SECURITY_TYPE_OPEN;
+        } else {
+            mSecurityValue = SoftApConfiguration.SECURITY_TYPE_WPA2_PSK;
         }
+
         final ListPreference preference = (ListPreference) mPreference;
-        final SoftApConfiguration config = mWifiManager.getSoftApConfiguration();
-        int defaultSecurityType = SoftApConfiguration.SECURITY_TYPE_WPA2_PSK;
-
-        for (int i = 0; i < securityNames.length; i++) {
-            mSecurityMap.put(Integer.parseInt(securityValues[i]), securityNames[i]);
-        }
-
-        preference.setEntries(mSecurityMap.values().stream().toArray(CharSequence[]::new));
-        preference.setEntryValues(mSecurityMap.keySet().stream().map(i -> Integer.toString(i))
-                    .toArray(CharSequence[]::new));
-
-        if (config.getBand() == (SoftApConfiguration.BAND_6GHZ | SoftApConfiguration.BAND_2GHZ)
-                && mSecurityMap.keySet().removeIf(
-                key -> key < SoftApConfiguration.SECURITY_TYPE_WPA3_SAE)) {
-            preference.setEntries(mSecurityMap.values().stream().toArray(CharSequence[]::new));
-            preference.setEntryValues(mSecurityMap.keySet().stream().map(i -> Integer.toString(i))
-                    .toArray(CharSequence[]::new));
-            defaultSecurityType = SoftApConfiguration.SECURITY_TYPE_WPA3_SAE;
-        }
-        // If the device does not support WPA3 /OWE then remove the WPA3 /OWE options.
-        if (!mIsWpa3Supported && mSecurityMap.keySet()
-                .removeIf(key -> key > SoftApConfiguration.SECURITY_TYPE_WPA2_PSK)) {
-            preference.setEntries(mSecurityMap.values().stream().toArray(CharSequence[]::new));
-            preference.setEntryValues(mSecurityMap.keySet().stream().map(i -> Integer.toString(i))
-                    .toArray(CharSequence[]::new));
-        } else if (!(mIsDualSapSupported && mIsOweSapSupported) && mSecurityMap.keySet()
-                .removeIf(key -> key > SoftApConfiguration.SECURITY_TYPE_WPA3_SAE)) {
-            preference.setEntries(mSecurityMap.values().stream().toArray(CharSequence[]::new));
-            preference.setEntryValues(mSecurityMap.keySet().stream().map(i -> Integer.toString(i))
-                    .toArray(CharSequence[]::new));
-        }
-
-        final int securityType = mWifiManager.getSoftApConfiguration().getSecurityType();
-        mSecurityValue = mSecurityMap.get(securityType) != null
-                ? securityType : defaultSecurityType;
-
-        preference.setSummary(mSecurityMap.get(mSecurityValue));
+        preference.setSummary(getSummaryForSecurityType(mSecurityValue));
         preference.setValue(String.valueOf(mSecurityValue));
     }
 
@@ -160,7 +107,11 @@ public class WifiTetherSecurityPreferenceController extends WifiTetherBasePrefer
         return mSecurityValue;
     }
 
-    public boolean isOweDualSapSupported() {
-        return mIsDualSapSupported && mIsOweSapSupported;
+    private String getSummaryForSecurityType(int securityType) {
+        if (securityType == SoftApConfiguration.SECURITY_TYPE_OPEN) {
+            return mSecurityEntries[1];
+        }
+        // WPA2 PSK
+        return mSecurityEntries[0];
     }
 }

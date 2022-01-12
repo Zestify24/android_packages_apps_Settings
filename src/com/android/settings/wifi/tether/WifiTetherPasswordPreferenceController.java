@@ -72,13 +72,13 @@ public class WifiTetherPasswordPreferenceController extends WifiTetherBasePrefer
     @Override
     public void updateDisplay() {
         final SoftApConfiguration config = mWifiManager.getSoftApConfiguration();
-        if (!isNoPasswordSecurityrType(config.getSecurityType())
+        if (config == null
+                || (config.getSecurityType() == SoftApConfiguration.SECURITY_TYPE_WPA2_PSK
                 && TextUtils.isEmpty(config.getPassphrase())) {
             mPassword = generateRandomPassword();
         } else {
             mPassword = config.getPassphrase();
         }
-        mSecurityType = config.getSecurityType();
         ((ValidatedEditTextPreference) mPreference).setValidator(this);
         ((ValidatedEditTextPreference) mPreference).setIsPassword(true);
         ((ValidatedEditTextPreference) mPreference).setIsSummaryPassword(true);
@@ -107,9 +107,9 @@ public class WifiTetherPasswordPreferenceController extends WifiTetherBasePrefer
      */
     public String getPasswordValidated(int securityType) {
         // don't actually overwrite unless we get a new config in case it was accidentally toggled.
-        if (isNoPasswordSecurityrType(securityType)) {
+        if (securityType == SoftApConfiguration.SECURITY_TYPE_OPEN) {
             return "";
-        } else if (!WifiUtils.isHotspotPasswordValid(mPassword, securityType)) {
+        } else if (!isTextValid(mPassword)) {
             mPassword = generateRandomPassword();
             updatePasswordDisplay((EditTextPreference) mPreference);
         }
@@ -124,7 +124,7 @@ public class WifiTetherPasswordPreferenceController extends WifiTetherBasePrefer
      */
     public void setSecurityType(int securityType) {
         mSecurityType = securityType;
-        mPreference.setVisible(!isNoPasswordSecurityrType(securityType));
+        mPreference.setVisible(securityType != SoftApConfiguration.SECURITY_TYPE_OPEN);
     }
 
     @Override

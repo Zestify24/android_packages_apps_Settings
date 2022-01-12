@@ -205,36 +205,11 @@ public class WifiTetherSettings extends RestrictedDashboardFragment
             Log.d("TetheringSettings",
                     "Wifi AP config changed while enabled, stop and restart");
             mRestartWifiApAfterConfigChange = true;
+            mSSIDPreferenceController.setButtonInvisible();
             mSwitchBarController.stopTether();
         }
         mWifiManager.setSoftApConfiguration(config);
-        use(WifiTetherAutoOffPreferenceController.class).updateDisplay();
 
-        if (mSecurityPreferenceController.isOweDualSapSupported()) {
-            if ((config.getSecurityType() == SoftApConfiguration.SECURITY_TYPE_OWE)
-                   && (mApBandPreferenceController.getBandIndex() == BAND_BOTH_2G_5G)) {
-                mApBandPreferenceController.updatePreferenceEntries();
-                mApBandPreferenceController.updateDisplay();
-                wasApBandPrefUpdated = true;
-            } else if (wasApBandPrefUpdated
-                   && config.getSecurityType() != SoftApConfiguration.SECURITY_TYPE_OWE) {
-                mApBandPreferenceController.updatePreferenceEntries();
-                mApBandPreferenceController.updateDisplay();
-                wasApBandPrefUpdated = false;
-            }
-        }
-
-        if (mApBandPreferenceController.getBandIndex() == BAND_6GHZ
-                && (mWasApBand6GHzSelected == false)) {
-            mSecurityPreferenceController.updateDisplay();
-            mWasApBand6GHzSelected = true;
-            config = buildNewConfig();
-            mWifiManager.setSoftApConfiguration(config);
-        } else if (mApBandPreferenceController.getBandIndex() != BAND_6GHZ
-                &&(mWasApBand6GHzSelected == true)) {
-            mSecurityPreferenceController.updateDisplay();
-            mWasApBand6GHzSelected = false;
-        }
         if (context instanceof WifiTetherSecurityPreferenceController) {
             reConfigInitialExpandedChildCount();
         }
@@ -244,26 +219,12 @@ public class WifiTetherSettings extends RestrictedDashboardFragment
         final SoftApConfiguration.Builder configBuilder = new SoftApConfiguration.Builder();
         final int securityType = mSecurityPreferenceController.getSecurityType();
         configBuilder.setSsid(mSSIDPreferenceController.getSSID());
-        if (securityType == SoftApConfiguration.SECURITY_TYPE_OPEN
-              || securityType == SoftApConfiguration.SECURITY_TYPE_OWE) {
-            configBuilder.setPassphrase(null, securityType);
-        } else {
+        if (securityType == SoftApConfiguration.SECURITY_TYPE_WPA2_PSK) {
             configBuilder.setPassphrase(
                     mPasswordPreferenceController.getPasswordValidated(securityType),
-                    securityType);
+                    SoftApConfiguration.SECURITY_TYPE_WPA2_PSK);
         }
-        if (mApBandPreferenceController.getBandIndex() == BAND_BOTH_2G_5G) {
-            // Fallback to 2G band if user selected OWE+Dual band
-            if (securityType == SoftApConfiguration.SECURITY_TYPE_OWE) {
-                configBuilder.setBand(SoftApConfiguration.BAND_2GHZ);
-            } else {
-                int[] dualBands = new int[] {
-                       SoftApConfiguration.BAND_2GHZ, SoftApConfiguration.BAND_5GHZ};
-                configBuilder.setBands(dualBands);
-            }
-        } else {
-            configBuilder.setBand(mApBandPreferenceController.getBandIndex());
-        }
+        configBuilder.setBand(mApBandPreferenceController.getBandIndex());
         return configBuilder.build();
     }
 

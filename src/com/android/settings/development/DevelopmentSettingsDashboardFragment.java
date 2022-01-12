@@ -507,7 +507,6 @@ public class DevelopmentSettingsDashboardFragment extends RestrictedDashboardFra
         controllers.add(new LogPersistPreferenceController(context, fragment, lifecycle));
         controllers.add(new CameraLaserSensorPreferenceController(context));
         controllers.add(new WifiDisplayCertificationPreferenceController(context));
-        controllers.add(new WifiCoverageExtendPreferenceController(context));
         controllers.add(new WifiVerboseLoggingPreferenceController(context));
         controllers.add(new WifiScanThrottlingPreferenceController(context));
         controllers.add(new WifiEnhancedMacRandomizationPreferenceController(context));
@@ -603,7 +602,6 @@ public class DevelopmentSettingsDashboardFragment extends RestrictedDashboardFra
 
     @Override
     public void onBluetoothHDAudioEnabled(boolean enabled) {
-        Log.d(TAG, "onBluetoothHDAudioEnabled: " + enabled);
         for (AbstractPreferenceController controller : mPreferenceControllers) {
             if (controller instanceof AbstractBluetoothDialogPreferenceController) {
                 ((AbstractBluetoothDialogPreferenceController) controller).onHDAudioEnabled(
